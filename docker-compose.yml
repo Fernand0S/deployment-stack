@@ -20,10 +20,10 @@ services:
       - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/ssl/keys:/var/lib/zabbix/ssl/keys:ro
     environment:
       - TZ=Africa/Luanda
-      - DB_SERVER_HOST=10.28.2.164
-      - MYSQL_USER=usr_app
-      - MYSQL_PASSWORD=AJjmB2H1bD13
-      - MYSQL_DATABASE=zabbix_db_velonet
+      - DB_SERVER_HOST=localhost
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=localhost
+      - MYSQL_DATABASE=localhost
       - ZBX_CACHESIZE=256M
       - ZBX_STARTPOLLERS=50
       - ZBX_STARTPINGERS=15
@@ -59,6 +59,11 @@ services:
       - ZBX_STARTREPORTWRITERS=3
       - ZBX_ALLOWEDIP=127.0.0.1,::1,0.0.0.0/0,zabbix
       - ZBX_STARTTRAPPERS=5
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     deploy:
       restart_policy:
         condition: on-failure
