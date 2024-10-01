@@ -1,0 +1,126 @@
+version: '3.8'
+networks:
+  net:
+    driver: overlay
+    attachable: true
+services:
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:7.0.3-centos
+    privileged: true
+    user: root
+    volumes:
+      - ${STACK_VOLUME}/zabbix/data/usr/lib/zabbix/alertscripts:/usr/lib/zabbix/alertscripts:ro
+      - ${STACK_VOLUME}/zabbix/data/usr/lib/zabbix/externalscripts:/usr/lib/zabbix/externalscripts:rw
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/modules:/var/lib/zabbix/modules:ro
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/enc:/var/lib/zabbix/enc:ro
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/ssh_keys:/var/lib/zabbix/ssh_keys:ro
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/mibs:/var/lib/zabbix/mibs:ro
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/snmptraps:/var/lib/zabbix/snmptraps:ro
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/ssl/certs:/var/lib/zabbix/ssl/certs:ro
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/ssl/keys:/var/lib/zabbix/ssl/keys:ro
+    environment:
+      - TZ=Africa/Luanda
+      - DB_SERVER_HOST=10.28.2.164
+      - MYSQL_USER=usr_app
+      - MYSQL_PASSWORD=AJjmB2H1bD13
+      - MYSQL_DATABASE=zabbix_db_velonet
+      - ZBX_CACHESIZE=256M
+      - ZBX_STARTPOLLERS=50
+      - ZBX_STARTPINGERS=15
+      - CACHESIZE=256M
+      - ZBX_DISCOVERYINTERVAL=3600
+      - ZBX_STARTDISCOVERY=0
+      - ZBX_STARTPOLLERSUNREACHABLE=10
+      - ZBX_LISTENPORT=10051
+      - ZBX_HOUSEKEEPINGFREQUENCY=1
+      - ZBX_MAXHOUSEKEEPERDELETE=70000
+      - ZBX_PROBLEMHOUSEKEEPINGFREQUENCY=60
+      - ZBX_SENDERFREQUENCY=30
+      - ZBX_CACHEUPDATEFREQUENCY=10
+      - ZBX_STARTDBSYNCERS=4
+      - ZBX_EXPORTFILESIZE=1G
+      - ZBX_HISTORYCACHESIZE=16M
+      - ZBX_HISTORYINDEXCACHESIZE=4M
+      - ZBX_HISTORYSTORAGEDATEINDEX=0
+      - ZBX_TRENDCACHESIZE=4M
+      - ZBX_TRENDFUNCTIONCACHESIZE=4M
+      - ZBX_VALUECACHESIZE=8M
+      - ZBX_UNREACHABLEPERIOD=45
+      - ZBX_UNAVAILABLEDELAY=60
+      - ZBX_UNREACHABLEDELAY=15
+      - ZBX_LOGSLOWQUERIES=3000
+      - ZBX_STARTVMWARECOLLECTORS=5
+      - ZBX_VMWAREFREQUENCY=60
+      - ZBX_VMWAREPERFFREQUENCY=60
+      - ZBX_VMWARECACHESIZE=16M
+      - ZBX_VMWARETIMEOUT=10
+      - ZBX_ENABLE_SNMP_TRAPS=true
+      - ZBX_WEBSERVICEURL=http://zabbix-reports:10053/report
+      - ZBX_STARTREPORTWRITERS=3
+      - ZBX_ALLOWEDIP=127.0.0.1,::1,0.0.0.0/0,zabbix
+      - ZBX_STARTTRAPPERS=5
+    deploy:
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: "1"
+          memory: 3048M
+        reservations:
+          memory: 1280M
+          cpus: "0.5"
+    ports:
+      - 10051:10051
+    networks:
+      - net
+  zabbix-frontend:
+    image: zabbix/zabbix-web-nginx-mysql:7.0.3-ubuntu
+    privileged: true
+    user: root
+    ports:
+      - '49083:8080'
+      - '8443:8443'
+    environment:
+      - PHP_TZ=Africa/Luanda
+      - ZBX_SERVER_NAME=IT SOLUTIONS
+      - DB_SERVER_HOST=
+      - MYSQL_USER=
+      - MYSQL_PASSWORD=
+      - MYSQL_DATABASE=
+      - ZBX_SERVER_HOST=zabbix-server
+      - ZBX_HOSTNAME=Zabbix server
+      - ZBX_SERVER_PORT=10051
+    depends_on:
+      - zabbix-server
+    networks:
+      - net
+  zabbix-snmptraps:
+    user: root
+    image: zabbix/zabbix-snmptraps:7.0.3-centos
+    volumes:
+      - ${STACK_VOLUME}/zabbix/data/var/lib/zabbix/snmptraps:/var/lib/zabbix/snmptraps:rw
+    privileged: true
+    ports:
+      - "161:161/udp"
+    environment:
+      - ZBX_HOSTNAME=Zabbix server
+      - ZBX_SERVER_HOST=zabbix-server
+    links:
+      - zabbix-server
+    networks:
+      - net
+  zabbix-reports:
+    user: root
+    image: zabbix/zabbix-web-service:7.0.3-centos
+    privileged: true
+    environment:
+      - ZBX_LISTENPORT=10053
+      - ZBX_ALLOWEDIP=127.0.0.1,::1,0.0.0.0/0,zabbix
+      - ZBX_DEBUGLEVEL=4
+    cap_add:
+      - SYS_ADMIN
+    depends_on:
+      - zabbix-server
+      - zabbix-frontend
+    networks:
+      - net
